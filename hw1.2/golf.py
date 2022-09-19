@@ -2,7 +2,7 @@ import queue
 from abc import abstractmethod, ABC
 from functools import lru_cache
 from itertools import chain
-from typing import Iterator
+from typing import Iterator, Tuple, List
 
 
 class Player:
@@ -11,39 +11,43 @@ class Player:
 
 
 class Table:
-    def __init__(self, columns: list, rows: int):
-        self.columns = columns
-        self.rows = rows
-        cols = len(columns)
-        self.table = [[None for j in range(cols)] for i in range(rows)]
+    def __init__(self, headers: List[Player], rows: int):
+        self.headers = headers
+        self.rows_amount = rows
+        cols_amount = len(headers)
+        self.table = [[None for j in range(cols_amount)] for i in range(rows)]
 
-    @property
-    def _column_names(self):
-        return tuple([col.name for col in self.columns])
+    def _column_names(self) -> Tuple[str, ...]:
+        return tuple([header.name for header in self.headers])
 
-    def get(self) -> list[tuple]:
-        return [self._column_names, *[tuple(row) for row in self.table]]
+    def get(self) -> List[Tuple]:
+        return [self._column_names(), *[tuple(row) for row in self.table]]
 
-    def __getitem__(self, row) -> list:
+    def __getitem__(self, row) -> List:
         return self.table[row]
 
 
 class BaseMatch(ABC):
-    def __init__(self, holes_amount: int, players: list[Player]):
+    def __init__(self, holes_amount: int, players: List[Player]):
+        if holes_amount != len(players):
+            raise ValueError
         self.finished = False
         self._holes_amount = holes_amount
         self._players_amount = len(players)
         self._scores_table = Table(players, holes_amount)
         self._chan = queue.Queue()
         self._hit = self._hit_worker(self._chan)
-        next(self._hit)
+        try:
+            next(self._hit)
+        except StopIteration:
+            self.finished = True
 
     @abstractmethod
     def _hit_worker(self, chan: queue.Queue) -> Iterator[None]:
         pass
 
     @abstractmethod
-    def _win_criteria(self, scores: list[int]) -> int:
+    def _win_criteria(self, scores: List[int]) -> int:
         pass
 
     def hit(self, success: bool = False) -> None:
@@ -56,19 +60,19 @@ class BaseMatch(ABC):
             self.finished = True
 
     @lru_cache  # not_finished -> finished   OK         finished -> not_finished   UNREACHABLE
-    def get_winners(self) -> list[str]:  # следовательно lru_cache OK
+    def get_winners(self) -> List[Player]:  # следовательно lru_cache OK
         if not self.finished:
             raise RuntimeError
         player_sums = [sum(col) for col in zip(*self._scores_table)]
         winner_sum = self._win_criteria(player_sums)
-        players = self._scores_table.columns
+        players = self._scores_table.headers
         result = []
         for player_idx, player_sum in enumerate(player_sums):
             if player_sum == winner_sum:
                 result.append(players[player_idx])
         return result
 
-    def get_table(self) -> list[tuple[int]]:
+    def get_table(self) -> List[Tuple[int]]:
         return self._scores_table.get()
 
     def _player_indices_from(self, hole_idx: int) -> Iterator[int]:
@@ -79,7 +83,7 @@ class HitsMatch(BaseMatch):
     PLAYER_ATTEMPTS_LIMIT = 9
     LOSER_SCORE = 10
 
-    def __init__(self, holes_amount: int, players: list[Player]):
+    def __init__(self, holes_amount: int, players: List[Player]):
         super().__init__(holes_amount, players)
 
     def _hit_worker(self, chan: queue.Queue) -> None:
@@ -97,7 +101,7 @@ class HitsMatch(BaseMatch):
                 if hole_scores[player_idx] is None:
                     hole_scores[player_idx] = self.LOSER_SCORE
 
-    def _win_criteria(self, scores: list[int]) -> int:
+    def _win_criteria(self, scores: List[int]) -> int:
         return min(scores)
 
 
@@ -105,7 +109,7 @@ class HolesMatch(BaseMatch):
     ATTEMPTS_PER_HOLE_LIMIT = 10
     LOSER_SCORE = 0
 
-    def __init__(self, holes_amount: int, players: list[Player]):
+    def __init__(self, holes_amount: int, players: List[Player]):
         super().__init__(holes_amount, players)
 
     def _hit_worker(self, chan: queue.Queue) -> None:
@@ -127,5 +131,5 @@ class HolesMatch(BaseMatch):
                 if hole_scores[player_idx] is None:
                     hole_scores[player_idx] = self.LOSER_SCORE
 
-    def _win_criteria(self, scores: list[int]) -> int:
+    def _win_criteria(self, scores: List[int]) -> int:
         return max(scores)

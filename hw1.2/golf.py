@@ -2,7 +2,7 @@ import queue
 from abc import abstractmethod, ABC
 from functools import lru_cache
 from itertools import chain
-from typing import Iterator, Tuple, List
+from typing import Iterator, Tuple, List, Optional
 
 
 class Player:
@@ -23,13 +23,18 @@ class Table:
     def get(self) -> List[Tuple]:
         return [self._column_names(), *[tuple(row) for row in self.table]]
 
-    def __getitem__(self, row) -> List:
+    def __getitem__(self, row) -> List[Optional[int]]:
         return self.table[row]
 
 
 class BaseMatch(ABC):
+    __slots__ = 'finished', '_holes_amount', '_players_amount', \
+        '_scores_table', '_chan', '_hit'
+
     def __init__(self, holes_amount: int, players: List[Player]):
         if holes_amount != len(players):
+            raise ValueError
+        if not players:
             raise ValueError
         self.finished = False
         self._holes_amount = holes_amount
@@ -37,10 +42,7 @@ class BaseMatch(ABC):
         self._scores_table = Table(players, holes_amount)
         self._chan = queue.Queue()
         self._hit = self._hit_worker(self._chan)
-        try:
-            next(self._hit)
-        except StopIteration:
-            self.finished = True
+        next(self._hit)
 
     @abstractmethod
     def _hit_worker(self, chan: queue.Queue) -> Iterator[None]:
@@ -80,6 +82,8 @@ class BaseMatch(ABC):
 
 
 class HitsMatch(BaseMatch):
+    __slots__ = ()
+
     PLAYER_ATTEMPTS_LIMIT = 9
     LOSER_SCORE = 10
 
@@ -106,6 +110,8 @@ class HitsMatch(BaseMatch):
 
 
 class HolesMatch(BaseMatch):
+    __slots__ = ()
+
     ATTEMPTS_PER_HOLE_LIMIT = 10
     LOSER_SCORE = 0
 

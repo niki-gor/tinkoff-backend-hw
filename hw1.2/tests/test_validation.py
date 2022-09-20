@@ -7,10 +7,10 @@ from golf import HitsMatch, HolesMatch, Player
 )
 def test_values(MatchType):
     with pytest.raises(ValueError):
-        match = MatchType(0, [])  # считаем матч без игроков невалидным
+        MatchType(0, [])  # считаем матч без игроков невалидным
     with pytest.raises(ValueError):
-        match = MatchType(0, [Player('mock')])
+        MatchType(0, [Player('mock')])
     with pytest.raises(ValueError):
-        match = MatchType(-1, [Player('mock')])
+        MatchType(-1, [Player('mock')])
     with pytest.raises(ValueError):
-        match = MatchType(7777777777777777, [Player('mock')])
+        MatchType(7777777777777777, [Player('mock')])

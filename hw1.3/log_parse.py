@@ -3,7 +3,7 @@ from collections import defaultdict
 from functools import lru_cache
 from typing import List, Callable, Dict, Tuple
 from datetime import datetime
-from furl import furl
+from urllib.parse import urlparse
 from http import HTTPStatus
 from abc import abstractmethod, ABC
 
@@ -19,34 +19,40 @@ def parse_date(s: str) -> datetime:
 class Query:
     __slots__ = ('request_date',
                  'request_type',
-                 'request',
-                 'protocol',
-                 'response_code',
+                 'url',
                  'response_time')
-
-    _REGEX = r'\[(.+)] "(\w+) (\S+) (\S+)" (\d{3}) (\d+)'
-    _query_pattern = re.compile(_REGEX)  # для ускорения работы
+    # 1 group — request_date
+    # 2 group — request_type
+    # 3 group — request (aka actual url)
+    # omitted — protocol (not used)
+    # 4 group — response_code (used only to validate and forget)
+    # 5 group — response_time
+    _REGEX = r'\[(.+)] "(\w+) (\S+) \S+" (\d{3}) (\d+)'
+    _query_pattern = re.compile(_REGEX)  # for optimization's sake
     _http_response_codes = set(HTTPStatus)
 
     def __init__(self,
-                 request_date_str,
-                 request_type_str,
-                 request_str,
-                 protocol_str,
-                 response_code_str,
-                 response_time_str):
+                 request_date_str: str,
+                 request_type_str: str,
+                 request_str: str,
+                 response_code_str: str,
+                 response_time_str: str):
         self.request_date = parse_date(request_date_str)
-        self.request_type = request_type_str
-        self.request = furl(request_str)
-        self.protocol = protocol_str
-        self.response_code = int(response_code_str)
-        if self.response_code not in self._http_response_codes:
-            raise ValueError
-        self.response_time = int(response_time_str)
 
-    @property
-    def url(self) -> str:
-        return self.request.netloc + self.request.pathstr
+        self.request_type = request_type_str
+        if not self.request_type.isupper():  # http methods are uppercase
+            raise ValueError
+
+        url = urlparse(request_str)  # actual url
+        self.url = url.netloc + url.path  # url according to the task
+
+        response_code = int(response_code_str)
+        if response_code not in self._http_response_codes:
+            raise ValueError
+
+        self.response_time = int(response_time_str)
+        if self.response_time < 0:
+            raise ValueError
 
     @classmethod
     def deserialize(cls, s: str) -> 'Query':
@@ -113,7 +119,7 @@ class TopUrlsStatistic(LogStatistic):
 
     # удаление элемента из списка 5 раз:                5*O(N) = O(N)
     # сортировка списка и выбор 5 элементов: O(NlogN) + 5*O(1) = O(NlogN)
-    # поэтому вариант с удалением асимптотически быстрее, чем сортировка
+    # вариант с удалением асимптотически быстрее, чем сортировка
     def _results(self) -> List[int]:
         result: List[int] = []
         freq = list(self._freq.values())
@@ -157,7 +163,7 @@ class SlowUrlsStatistic(LogStatistic):
 
 
 def is_not_file(query: Query) -> bool:
-    return '.' not in query.request.path.segments[-1]
+    return '.' not in query.url.split('/')[-1]
 
 
 def is_not_ignored_url(ignored_urls: List[str]) -> Callable[[Query], bool]:
@@ -187,7 +193,7 @@ def is_request_type(request_type: str) -> Callable[[Query], bool]:
 
 
 def remove_www_prefix(query: Query) -> None:
-    query.request.netloc = query.request.netloc.removeprefix('www.')
+    query.url = query.url.removeprefix('www.')
 
 
 def parse(
@@ -219,4 +225,3 @@ def parse(
     if slow_queries:
         statistic = SlowUrlsStatistic
     return statistic(_LOG_PATH, preprocessors, filters).get()
-

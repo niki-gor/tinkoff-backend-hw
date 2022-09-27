@@ -111,6 +111,9 @@ class TopUrlsStatistic(LogStatistic):
     def _process_query(self, query: Query):
         self._freq[query.url] += 1
 
+    # удаление элемента из списка 5 раз:                5*O(N) = O(N)
+    # сортировка списка и выбор 5 элементов: O(NlogN) + 5*O(1) = O(NlogN)
+    # поэтому вариант с удалением асимптотически быстрее, чем сортировка
     def _results(self) -> List[int]:
         result: List[int] = []
         freq = list(self._freq.values())

@@ -125,5 +125,5 @@ def parse(
 
 print(*parse(ignore_files=True, ignore_urls=[
     'sys.mail.ru/calendar/meeting/254/40261/'],
-             ignore_www=True))
+             ignore_www=False))
 

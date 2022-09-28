@@ -1,3 +1,4 @@
+import os
 import re
 from collections import defaultdict
 from functools import lru_cache
@@ -8,12 +9,12 @@ from http import HTTPStatus
 from abc import abstractmethod, ABC
 
 
-_LOG_PATH = 'log.log'
-_DATE_FORMAT = '%d/%b/%Y %H:%M:%S'
+DEFAULT_LOG_PATH = 'log.log'
+DATE_FORMAT = '%d/%b/%Y %H:%M:%S'
 
 
 def parse_date(s: str) -> datetime:
-    return datetime.strptime(s, _DATE_FORMAT)
+    return datetime.strptime(s, DATE_FORMAT)
 
 
 class Query:
@@ -224,4 +225,7 @@ def parse(
     statistic = TopUrlsStatistic
     if slow_queries:
         statistic = SlowUrlsStatistic
-    return statistic(_LOG_PATH, preprocessors, filters).get()
+
+    path = os.environ.get('LOG_PATH', DEFAULT_LOG_PATH)
+
+    return statistic(path, preprocessors, filters).get()

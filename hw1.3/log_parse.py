@@ -70,9 +70,7 @@ class Query:
 
 
 class LogStatistic(ABC):
-    __slots__ = ('_path',
-                 '_preprocessors',
-                 '_filters')
+    __slots__ = ()
 
     TOP_URLS_AMOUNT = 5
 
@@ -80,31 +78,26 @@ class LogStatistic(ABC):
                  path: str,
                  preprocessors: List[Callable[[Query], None]],
                  filters: List[Callable[[Query], bool]]):
-        self._path = path
-        self._preprocessors = preprocessors
-        self._filters = filters
-
-    @abstractmethod
-    def _register_query(self, query: Query):
-        pass
-
-    @abstractmethod
-    def _results(self) -> List[int]:
-        pass
-
-    def get(self) -> List[int]:
-        with open(self._path, 'r') as file:
+        with open(path, 'r') as file:
             for line in file:
                 line = line.strip()
                 try:
                     query = Query.deserialize(line)
                 except ValueError:
                     continue
-                for preprocess in self._preprocessors:
+                for preprocess in preprocessors:
                     preprocess(query)
-                if all(requirement(query) for requirement in self._filters):
+                if all(requirement(query) for requirement in filters):
                     self._register_query(query)
-        return self._results()
+
+    @abstractmethod
+    def _register_query(self, query: Query):
+        pass
+
+    @property
+    @abstractmethod
+    def results(self) -> List[int]:
+        pass
 
 
 class TopUrlsStatistic(LogStatistic):
@@ -114,8 +107,11 @@ class TopUrlsStatistic(LogStatistic):
                  path: str,
                  preprocessors: List[Callable[[Query], None]],
                  filters: List[Callable[[Query], bool]]):
-        super().__init__(path, preprocessors, filters)
+        # базовый класс считает статистику при инициализации
+        # поэтому приватные переменные класса указываются до инита базового
         self._freq: Dict[str, int] = defaultdict(lambda: 0)
+
+        super().__init__(path, preprocessors, filters)
 
     def _register_query(self, query: Query):
         self._freq[query.url] += 1
@@ -123,7 +119,8 @@ class TopUrlsStatistic(LogStatistic):
     # удаление элемента из списка 5 раз:                5*O(N) = O(N)
     # сортировка списка и выбор 5 элементов: O(NlogN) + 5*O(1) = O(NlogN)
     # вариант с удалением асимптотически быстрее, чем сортировка
-    def _results(self) -> List[int]:
+    @property
+    def results(self) -> List[int]:
         result: List[int] = []
         freq = list(self._freq.values())
         while len(freq) > 0 and len(result) < self.TOP_URLS_AMOUNT:
@@ -140,9 +137,10 @@ class SlowUrlsStatistic(LogStatistic):
                  path: str,
                  preprocessors: List[Callable[[Query], None]],
                  filters: List[Callable[[Query], bool]]):
-        super().__init__(path, preprocessors, filters)
         self._wait_freq: Dict[str, Tuple[int, ...]] = \
             defaultdict(lambda: tuple([0, 0]))
+
+        super().__init__(path, preprocessors, filters)
 
     def _register_query(self, query: Query):
         wait, freq = self._wait_freq[query.url]
@@ -150,7 +148,8 @@ class SlowUrlsStatistic(LogStatistic):
         freq += 1
         self._wait_freq[query.url] = wait, freq
 
-    def _results(self) -> List[int]:
+    @property
+    def results(self) -> List[int]:
         result: List[int] = []
         wait_freq = list(self._wait_freq.values())
         while len(wait_freq) > 0 and len(result) < self.TOP_URLS_AMOUNT:
@@ -235,5 +234,5 @@ def parse(
 
     path = os.environ.get('LOG_PATH', DEFAULT_LOG_PATH)
 
-    return statistic(path, preprocessors, filters).get()
+    return statistic(path, preprocessors, filters).results
 

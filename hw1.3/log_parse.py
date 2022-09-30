@@ -93,7 +93,7 @@ class LogStatistic(ABC):
     def _results(self) -> List[int]:
         pass
 
-    def _collect_data(self) -> None:
+    def get(self) -> List[int]:
         with open(self._path, 'r') as file:
             for line in file:
                 line = line.strip()
@@ -105,10 +105,6 @@ class LogStatistic(ABC):
                     preprocess(query)
                 if all(requirement(query) for requirement in self._filters):
                     self._register_query(query)
-
-    @lru_cache
-    def get(self) -> List[int]:
-        self._collect_data()
         return self._results()
 
 

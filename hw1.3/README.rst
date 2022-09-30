@@ -3,7 +3,7 @@
 
 Установить и запустить контейнер (тесты запустятся при старте контейнера):
 ::
-    docker run -t --rm nikigor/backend-academy-hw-1-2
+    docker run -t --rm nikigor/backend-academy-hw-1-3
 
 С помощью опции **--rm** контейнер удалится автоматически.
 

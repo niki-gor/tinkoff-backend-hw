@@ -1,5 +1,6 @@
 import os
-import re
+import regex
+import validators
 from collections import defaultdict
 from functools import lru_cache
 from typing import List, Callable, Dict, Tuple
@@ -10,11 +11,13 @@ from abc import abstractmethod, ABC
 
 
 DEFAULT_LOG_PATH = 'log.log'
-DATE_FORMAT = '%d/%b/%Y %H:%M:%S'
 
 
 def parse_date(s: str) -> datetime:
-    return datetime.strptime(s, DATE_FORMAT)
+    return datetime.strptime(s, parse_date.DATE_FORMAT)
+
+
+parse_date.DATE_FORMAT = '%d/%b/%Y %H:%M:%S'
 
 
 class Query:
@@ -29,8 +32,10 @@ class Query:
     # 4 group — response_code (used only to validate and forget)
     # 5 group — response_time
     _REGEX = r'\[(.+)] "(\w+) (\S+) \S+" (\d{3}) (\d+)'
-    _query_pattern = re.compile(_REGEX)  # for optimization's sake
+    _query_pattern = regex.compile(_REGEX)  # for optimization's sake
     _http_response_codes = set(HTTPStatus)
+    _http_methods = {'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD',
+                     'OPTIONS', 'TRACE', 'CONNECT'}
 
     def __init__(self,
                  request_date_str: str,
@@ -41,9 +46,11 @@ class Query:
         self.request_date = parse_date(request_date_str)
 
         self.request_type = request_type_str
-        if not self.request_type.isupper():  # http methods are uppercase
+        if self.request_type not in self._http_methods:
             raise ValueError
 
+        if not validators.url(request_str):
+            raise ValueError
         url = urlparse(request_str)  # actual url
         self.url = url.netloc + url.path  # url according to the task
 
@@ -79,7 +86,7 @@ class LogStatistic(ABC):
         self._filters = filters
 
     @abstractmethod
-    def _process_query(self, query: Query):
+    def _register_query(self, query: Query):
         pass
 
     @abstractmethod
@@ -97,7 +104,7 @@ class LogStatistic(ABC):
                 for preprocess in self._preprocessors:
                     preprocess(query)
                 if all(requirement(query) for requirement in self._filters):
-                    self._process_query(query)
+                    self._register_query(query)
 
     @lru_cache
     def get(self) -> List[int]:
@@ -115,7 +122,7 @@ class TopUrlsStatistic(LogStatistic):
         super().__init__(path, preprocessors, filters)
         self._freq: Dict[str, int] = defaultdict(lambda: 0)
 
-    def _process_query(self, query: Query):
+    def _register_query(self, query: Query):
         self._freq[query.url] += 1
 
     # удаление элемента из списка 5 раз:                5*O(N) = O(N)
@@ -142,7 +149,7 @@ class SlowUrlsStatistic(LogStatistic):
         self._wait_freq: Dict[str, Tuple[int, ...]] = \
             defaultdict(lambda: tuple([0, 0]))
 
-    def _process_query(self, query: Query):
+    def _register_query(self, query: Query):
         wait, freq = self._wait_freq[query.url]
         wait += query.response_time
         freq += 1
@@ -194,7 +201,12 @@ def is_request_type(request_type: str) -> Callable[[Query], bool]:
 
 
 def remove_www_prefix(query: Query) -> None:
-    query.url = query.url.removeprefix('www.')
+    if remove_www_prefix.www_pattern.match(query.url):
+        query.url = regex.sub(r'www.', '', query.url, count=1)
+
+
+remove_www_prefix.WWW_REGEX = r'www\.[\p{L}\d\-]+\.[\p{L}\d\-]+'
+remove_www_prefix.www_pattern = regex.compile(remove_www_prefix.WWW_REGEX)
 
 
 def parse(
@@ -229,3 +241,4 @@ def parse(
     path = os.environ.get('LOG_PATH', DEFAULT_LOG_PATH)
 
     return statistic(path, preprocessors, filters).get()
+

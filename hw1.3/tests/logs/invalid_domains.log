@@ -1,0 +1,13 @@
+[18/Mar/2018 11:19:40] "GET http://calendar/config/254/40253/ HTTP/1.1" 200 966
+[20/Mar/2018 11:15:46] "GET https://sys.mail.ru-/ HTTP/1.1" 200 27412
+[20/Mar/2018 11:15:46] "GET https://-sys.mail.ru/ HTTP/1.1" 200 27412
+[20/Mar/2018 11:15:46] "GET https://-sys.mail.ru-/ HTTP/1.1" 200 27412
+[20/Mar/2018 11:15:46] "GET https://-/ HTTP/1.1" 200 27412
+[20/Mar/2018 11:15:46] "GET https://....ru/ HTTP/1.1" 200 27412
+[20/Mar/2018 11:15:46] "GET https://???????/ HTTP/1.1" 200 27412
+
+[20/Mar/2018 11:15:46] "GET https://777.0.0.1/ HTTP/1.1" 200 27412
+[20/Mar/2018 11:15:46] "GET https://sys.mail.ru:777777/ HTTP/1.1" 200 27412
+
+[20/Mar/2018 11:15:46] "GET lololol://sys.mail.ru/ HTTP/1.1" 200 27412
+[20/Mar/2018 11:15:46] "GET ne_https://sys.mail.ru/ HTTP/1.1" 200 27412

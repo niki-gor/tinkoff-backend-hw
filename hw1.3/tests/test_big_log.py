@@ -60,6 +60,7 @@ def test_big_log():
 
     os.environ['LOG_PATH'] = file.name
     assert parse(ignore_files=True, ignore_www=True,
-                 start_at=start_at, stop_at=stop_at, slow_queries=True)[0] \
+                 start_at=start_at, stop_at=stop_at,
+                 ignore_urls=['mock.mock'], slow_queries=True)[0] \
            == max_response_time
     del os.environ['LOG_PATH']

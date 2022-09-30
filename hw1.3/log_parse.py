@@ -58,9 +58,8 @@ class Query:
         if response_code not in self._http_response_codes:
             raise ValueError
 
+        # always valid since we capture only digits in regex group
         self.response_time = int(response_time_str)
-        if self.response_time < 0:
-            raise ValueError
 
     @classmethod
     def deserialize(cls, s: str) -> 'Query':

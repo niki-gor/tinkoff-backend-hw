@@ -1,0 +1,2 @@
+[20/Mar/2018 11:15:46] "GET https://www.ru/ HTTP/1.1" 200 27412
+[20/Mar/2018 11:15:46] "GET https://www.www.ru/ HTTP/1.1" 200 27412

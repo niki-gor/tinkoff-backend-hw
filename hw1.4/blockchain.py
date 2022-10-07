@@ -1,11 +1,15 @@
 import datetime
+import itertools
 import pickle
+from multiprocessing import Process, Queue, cpu_count
 from hashlib import sha256
 from datetime import datetime
 from dataclasses import dataclass
-from typing import List
+from threading import Thread
+from typing import List, Dict, Iterator, Optional
 from flask import Flask, jsonify
 from flask.typing import ResponseReturnValue
+from http import HTTPStatus
 
 
 def math_func(proof: int, previous_proof: int) -> int:
@@ -13,48 +17,111 @@ def math_func(proof: int, previous_proof: int) -> int:
 
 
 def get_sha256(proof: int, previous_proof: int) -> str:
-    return sha256(str(math_func(proof, previous_proof)).encode()).hexdigest()
+    calculation = math_func(proof, previous_proof)
+    encoded = str(calculation).encode()
+    return sha256(encoded).hexdigest()
 
 
 @dataclass
 class Block:
     index: int
     timestamp: datetime
-    proof: int
-    previous_hash: str
+    proof: Optional[int]
+    previous_hash: Optional[str]
 
 
 class Blockchain:
+    INITIAL_PROOF = 1
+    INITIAL_HASH = "0"
+
     def __init__(self, calc_complex="00000"):
-        self.chain: List[Block] = []
-        self.create_block(1, "0")
+        self.processes_amount = cpu_count()
         self.complex: str = calc_complex
+        self.chain: List[Block] = []
+        self.future_blocks_chan: Queue[Block] = Queue()
+        self.index_counter: Iterator = itertools.count(1)
 
-    def create_block(self, proof: int, previous_hash: str) -> Block:
-        block = Block(
-            index=len(self.chain) + 1,
+        initial_block = Block(
+            index=next(self.index_counter),
             timestamp=datetime.now(),
-            proof=proof,
-            previous_hash=previous_hash,
+            proof=self.INITIAL_PROOF,
+            previous_hash=self.INITIAL_HASH,
         )
-        self.chain.append(block)
+        self.chain.append(initial_block)
 
-        return block
+        Thread(target=self._future_blocks_worker, daemon=True).start()
+        # join'ить его не нужно, т.к. пока работает сервер, работает и поток
+        # следовательно, хранить его тоже не обязательно
 
-    def get_previous_block(self):
+        # Почему не процесс?
+        # Потому что при использовании процесса GIL'ом блочится self.chain
+
+    def create_block(self) -> Dict:
+        future_block = Block(
+            index=next(self.index_counter),
+            timestamp=datetime.now(),
+            proof=None,
+            previous_hash=None,
+        )
+        report = {
+            "index": future_block.index,
+            "timestamp": future_block.timestamp,
+        }
+        self.future_blocks_chan.put(future_block)
+
+        return report
+
+    @property
+    def previous_block(self):
         return self.chain[-1]
 
-    def proof_of_work(self, previous_proof: int) -> int:
-        new_proof = 1
-        check_proof = False
+    def _future_blocks_worker(self):
+        while True:
+            block = self.future_blocks_chan.get()
+            block.previous_hash = self.hash(self.previous_block)
+            block.proof = self.proof_of_work(self.previous_block.proof)
+            self.chain.append(block)
 
-        while not check_proof:
+    def _proof_of_work_worker(self,
+                              chan_in: Queue,
+                              chan_out: Queue,
+                              previous_proof: int) -> None:
+        while new_proof := chan_in.get():
             hash_operation = get_sha256(new_proof, previous_proof)
-            check_proof = self.is_hash_complex_valid(hash_operation)
-            if not check_proof:
-                new_proof += 1
+            is_valid = self.is_hash_complex_valid(hash_operation)
+            result = new_proof, is_valid
+            chan_out.put(result)
 
-        return new_proof
+    def proof_of_work(self, previous_proof: int) -> int:
+        in_chan = Queue()
+        out_chan = Queue()
+        processes = []
+        for _ in range(self.processes_amount):
+            process = Process(target=self._proof_of_work_worker,
+                              args=(out_chan,
+                                    in_chan,
+                                    previous_proof))
+            process.start()
+            processes.append(process)
+
+        proof_gen = itertools.count(1)
+        for _ in range(self.processes_amount):
+            new_proof = next(proof_gen)
+            out_chan.put(new_proof)
+
+        result, check_proof = None, False
+        while not check_proof:
+            result, check_proof = in_chan.get()
+            new_proof = next(proof_gen)
+            out_chan.put(new_proof)
+
+        for _ in range(self.processes_amount):
+            out_chan.put(None)
+
+        for process in processes:
+            process.join()
+
+        return result
 
     def hash(self, block: Block) -> str:
         encoded_block = pickle.dumps(block)
@@ -73,7 +140,6 @@ class Blockchain:
             previous_proof = previous_block.proof
             proof = block.proof
             hash_operation = get_sha256(proof, previous_proof)
-
             if not self.is_hash_complex_valid(hash_operation):
                 return False
 
@@ -82,15 +148,10 @@ class Blockchain:
         return True
 
 
-# user -> www.vk.ru -> login(eyes) - front -> POST username, password ==> backend - АПИ
-
 app = Flask(__name__)
-blockchain = Blockchain(calc_complex="00000")
+blockchain = Blockchain(calc_complex="0000")
 
 
-# Graphql, GRPC
-
-# Shop - product API - REST
 # POST - create new product
 # PUT - change product
 # PATCH - change small product
@@ -99,37 +160,26 @@ blockchain = Blockchain(calc_complex="00000")
 # создаем новый блок => метод POST
 @app.route("/mine_block", methods=["POST"])
 def mine_block() -> ResponseReturnValue:
-    previous_block = blockchain.get_previous_block()
-    previous_proof = previous_block.proof
-
-    proof = blockchain.proof_of_work(previous_proof)
-    previous_hash = blockchain.hash(previous_block)
-
-    block = blockchain.create_block(proof, previous_hash)
-
-    response = {
-        "message": "Block created",
-        "index": block.index,
-        "timestamp": block.timestamp,
-        "proof": block.proof,
-        "previous_hash": block.previous_hash,
-    }
-
-    return jsonify(response), 200
+    response = blockchain.create_block()
+    response["message"] = "mine_block request accepted"
+    return jsonify(response), HTTPStatus.ACCEPTED
+    # мы не создали новый блок, а лишь приняли запрос на создание блока
 
 
 @app.route("/valid", methods=["GET"])
 def valid() -> ResponseReturnValue:
-    return jsonify({
+    response = {
         "chain_valid": "OK" if blockchain.chain_valid() else "NOT OK"
-    }), 200
+    }
+    return jsonify(response), HTTPStatus.OK
 
 
 @app.route("/get_chain", methods=["GET"])
 def get_chain() -> ResponseReturnValue:
-    return jsonify({
+    response = {
         "chain": blockchain.chain
-    }), 200
+    }
+    return jsonify(response), HTTPStatus.OK
 
 
 app.run(host="127.0.0.1", debug=True, port=5000)

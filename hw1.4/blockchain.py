@@ -1,4 +1,3 @@
-import datetime
 import itertools
 import pickle
 from multiprocessing import Process, Queue, cpu_count
@@ -130,6 +129,15 @@ class Blockchain:
     def is_hash_complex_valid(self, hash_operation) -> bool:
         return hash_operation[:len(self.complex)] == self.complex
 
+    def get_block_status(self, index: int) -> str:
+        ready = len(self.chain)
+        in_progress = self.future_blocks_chan.qsize()
+        if 1 <= index <= ready:
+            return 'completed'
+        if ready < index <= ready + in_progress:
+            return "in_progress"
+        return "not_found"
+
     def chain_valid(self) -> bool:
         previous_block = self.chain[0]
 
@@ -149,7 +157,7 @@ class Blockchain:
 
 
 app = Flask(__name__)
-blockchain = Blockchain(calc_complex="0000")
+blockchain = Blockchain(calc_complex="00000")
 
 
 # POST - create new product
@@ -178,6 +186,14 @@ def valid() -> ResponseReturnValue:
 def get_chain() -> ResponseReturnValue:
     response = {
         "chain": blockchain.chain
+    }
+    return jsonify(response), HTTPStatus.OK
+
+
+@app.route("/block/<int:index>/status", methods=["GET"])
+def get_block_status(index: int) -> ResponseReturnValue:
+    response = {
+        "status": blockchain.get_block_status(index)
     }
     return jsonify(response), HTTPStatus.OK
 

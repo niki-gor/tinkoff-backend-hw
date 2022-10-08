@@ -157,7 +157,7 @@ class Blockchain:
 
 
 app = Flask(__name__)
-blockchain = Blockchain(calc_complex="00000")
+blockchain = Blockchain(calc_complex="000000000")
 
 
 # POST - create new product

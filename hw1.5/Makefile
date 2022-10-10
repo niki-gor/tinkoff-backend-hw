@@ -2,11 +2,11 @@ PYTHONPATH = PYTHONPATH=./
 
 .PHONY: test
 test: # Runs pytest
-	$(PYTHONPATH) pytest test.py
+	$(PYTHONPATH) pytest tests/*
 
 .PHONY: lint
 lint: # Lint code
-	flake8 --exclude test.py .
+	flake8 --exclude tests/ .
 	mypy .
 	black --line-length 79 --skip-string-normalization --check .
 

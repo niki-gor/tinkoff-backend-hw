@@ -1,5 +1,3 @@
-import os
-
 import pytest
 from tv_program import search_show
 

@@ -1,5 +1,7 @@
 import json
+import os.path
 import sys
+from typing import Union
 
 import pydantic.error_wrappers
 import requests
@@ -33,31 +35,42 @@ class Show(BaseModel):
         )
 
 
-def search_show(name: str):
+class Cache:
+    status_code: int
+    data: Union[Show, str]
+
+
+
+def search_show(name: str) -> Union[Show, str]:
     if not isinstance(name, str):
         raise TypeError("Expected show name (type str)")
 
+    if not os.path.exists(f'./cache/{name}') or os.path.getmtime()
     params = {"q": name}
     response = requests.get(url=API_URL, params=params)
 
     if response.status_code == HTTPStatus.NOT_FOUND:
-        print("Not found")
-        return
+        return "Not found"
+    # не исключение — отсутствие шоу в списке — обычная ситуация
+
+    if response.status_code != HTTPStatus.OK:
+        raise Exception(
+            f"Something bad happened: {response.status_code}\n"
+            f"{response.content!r}"
+        )
 
     try:
         json_data = json.loads(response.content)
-    except json.decoder.JSONDecodeError:
-        print("Invalid JSON response")
-        return
-
-    try:
         show = Show(**json_data)
+    except json.decoder.JSONDecodeError:
+        raise ValueError("Invalid JSON response")
     except pydantic.error_wrappers.ValidationError:
-        print("Missing required fields")
-        return
+        raise ValueError("Missing required fields")
 
-    print(show)
+    return show
 
 
 if __name__ == "__main__" or __name__ == "tv_program":
-    search_show(" ".join(sys.argv[1:]))
+    showname = " ".join(sys.argv[1:])
+    result = search_show(showname)
+    print(result)

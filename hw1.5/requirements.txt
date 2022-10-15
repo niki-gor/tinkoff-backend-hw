@@ -1,0 +1,7 @@
+requests
+pydantic
+
+pytest
+flake8
+black
+mypy

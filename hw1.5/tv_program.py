@@ -1,5 +1,4 @@
 import json
-import os.path
 import sys
 from typing import Union
 
@@ -35,17 +34,10 @@ class Show(BaseModel):
         )
 
 
-class Cache:
-    status_code: int
-    data: Union[Show, str]
-
-
-
 def search_show(name: str) -> Union[Show, str]:
     if not isinstance(name, str):
         raise TypeError("Expected show name (type str)")
 
-    if not os.path.exists(f'./cache/{name}') or os.path.getmtime()
     params = {"q": name}
     response = requests.get(url=API_URL, params=params)
 

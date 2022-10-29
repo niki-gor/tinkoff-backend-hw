@@ -16,6 +16,7 @@ class Show(BaseModel):
     name: str
     network: Network
     summary: str
+    id: int
 
     def __str__(self):
         return (

@@ -3,8 +3,7 @@ from typing import List
 
 import requests
 
-from models import Update, Updates
-
+from .models import Update, Updates
 
 ALLOWED_TAGS = ('b', 'strong',
                 'i', 'em',
@@ -28,9 +27,9 @@ def _remove_unsupported_tags(s: str) -> str:
             closing_idx = s.find('>', idx)
             if closing_idx == -1:
                 return s
-            tag = s[idx+1:closing_idx].split()[0].removeprefix('/')
+            tag = s[idx + 1:closing_idx].split()[0].removeprefix('/')
             if tag in ALLOWED_TAGS:
-                result += s[idx:closing_idx+1]
+                result += s[idx:closing_idx + 1]
             idx = closing_idx + 1
 
     return result

@@ -1,14 +1,14 @@
 import json
 from http import HTTPStatus
-from typing import Union
+from typing import Optional
 
 import pydantic
 import requests
 
-from models import Show
+from .models import Show
 
 
-def search_show(name: str) -> Union[Show, str]:
+def search_show(name: str) -> Optional[Show]:
     if not isinstance(name, str):
         raise TypeError("Expected show name (type str)")
 
@@ -16,7 +16,7 @@ def search_show(name: str) -> Union[Show, str]:
     response = requests.get(url=search_show.API_URL, params=params)
 
     if response.status_code == HTTPStatus.NOT_FOUND:
-        return "Not found"
+        return None
     # не является исключением. отсутствие шоу в списке — обычная ситуация
 
     if response.status_code != HTTPStatus.OK:
@@ -31,7 +31,7 @@ def search_show(name: str) -> Union[Show, str]:
     except json.decoder.JSONDecodeError:
         raise ValueError("Invalid JSON response")
     except pydantic.error_wrappers.ValidationError:
-        raise ValueError("Missing required fields")
+        raise ValueError("Looks like information about network is not provided")
 
     return show
 

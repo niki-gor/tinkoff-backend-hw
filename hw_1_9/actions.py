@@ -25,7 +25,7 @@ class InsertAction(Action):
             self.pos = len(text)
         if not 0 <= self.pos <= len(text):
             raise ValueError
-        return text[:self.pos] + self.text + text[self.pos:]
+        return text[: self.pos] + self.text + text[self.pos :]
 
 
 class ReplaceAction(Action):
@@ -41,7 +41,7 @@ class ReplaceAction(Action):
             if not 0 <= self.pos <= len(text):
                 raise ValueError
             pos = self.pos
-        return text[:pos] + self.text + text[pos + len(self.text):]
+        return text[:pos] + self.text + text[pos + len(self.text) :]
 
 
 class DeleteAction(Action):
@@ -55,4 +55,4 @@ class DeleteAction(Action):
             raise ValueError
         if not 0 <= self.pos + self.length <= len(text):
             raise ValueError
-        return text[:self.pos] + text[self.pos + self.length:]
+        return text[: self.pos] + text[self.pos + self.length :]

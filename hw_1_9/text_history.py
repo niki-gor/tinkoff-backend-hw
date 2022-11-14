@@ -1,5 +1,3 @@
-from typing import Optional
-
 from actions import InsertAction, ReplaceAction, DeleteAction, Action
 
 
@@ -18,21 +16,15 @@ class TextHistory:
         return self._version
 
     def insert(self, text: str, pos=None) -> int:
-        action = InsertAction(text,
-                              pos,
-                              from_version=self._version)
+        action = InsertAction(text, pos, from_version=self._version)
         return self.action(action)
 
     def replace(self, text: str, pos=None) -> int:
-        action = ReplaceAction(text,
-                               pos,
-                               from_version=self._version)
+        action = ReplaceAction(text, pos, from_version=self._version)
         return self.action(action)
 
     def delete(self, pos: int, length: int) -> int:
-        action = DeleteAction(pos,
-                              length,
-                              from_version=self._version)
+        action = DeleteAction(pos, length, from_version=self._version)
         return self.action(action)
 
     def action(self, action: Action) -> int:

@@ -22,36 +22,38 @@ class Parser(ABC):
         return bool(cls.URL_REGEX.fullmatch(url))
 
 
-class TitleParser(Parser):
-    SELECTOR = 'head > title'
-    REMOVESUFFIX: str = None
-
-    @classmethod
-    def parse(cls, url: str) -> str:
-        return super().parse(url).removesuffix(cls.REMOVESUFFIX)
-
-
-class YouTubeParser(TitleParser):
+class YouTubeParser(Parser):
     URL_REGEX = re.compile(r'https://www\.youtube\.com/watch\?v=\w+/?')
-    REMOVESUFFIX = ' - YouTube'
-
-
-class YaMusicParser(TitleParser):
-    URL_REGEX = re.compile(r'https://music\.yandex\.ru/album/\d+/track/\d+/?')
-    REMOVESUFFIX = ' слушать онлайн на Яндекс Музыке'
 
     @classmethod
     def parse(cls, url: str) -> str:
-        page = requests.get(url)
-        soup = BeautifulSoup(page.text, 'html.parser')
-        result = soup.select_one(cls.SELECTOR).text
+        page = requests.get(url).text
+        soup = BeautifulSoup(page, 'html.parser')
+        result = soup.select_one('head > title').text
+        return result.removesuffix(' - YouTube')
+
+
+class YaMusicParser(Parser):
+    URL_REGEX = re.compile(r'https://music\.yandex\.ru/album/\d+/track/\d+/?')
+
+    @classmethod
+    def parse(cls, url: str) -> str:
+        page = requests.get(url).text
+        soup = BeautifulSoup(page, 'html.parser')
+        result = soup.select_one('head > title').text
         artists = soup.select_one('.page-album__artists-short > span > a').text
-        return result.removesuffix(f' {artists}{cls.REMOVESUFFIX}')
+        return result.removesuffix(f' {artists} слушать онлайн на Яндекс Музыке')
 
 
-class HabrParser(TitleParser):
+class HabrParser(Parser):
     URL_REGEX = re.compile(r'https://habr\.com/ru/post/\d+/?')
-    REMOVESUFFIX = ' / Хабр'
+
+    @classmethod
+    def parse(cls, url: str) -> str:
+        page = requests.get(url).text
+        soup = BeautifulSoup(page, 'html.parser')
+        result = soup.select_one('head > title').text
+        return result.removesuffix(' / Хабр')
 
 
 class ParserEngine:

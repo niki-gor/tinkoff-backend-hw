@@ -43,7 +43,7 @@ class YaMusicParser(Parser):
 
 
 class HabrParser(Parser):
-    URL_REGEX = re.compile(r'https://habr\.com/ru/post/\d+/?')
+    URL_REGEX = re.compile(r'https://habr\.com/ru/(post/|company/\w+/blog/)\d+/?')
 
     @classmethod
     def parse(cls, url: str) -> str:
@@ -55,9 +55,12 @@ class HabrParser(Parser):
 
 class ParserEngine:
     def __init__(self, parser: Optional[Parser] = None):
-        self._parser = parser
+        self._parser = None
+        self.set_parser(parser)
 
-    def set_parser(self, parser):
+    def set_parser(self, parser: Optional[Parser]):
+        if not isinstance(parser, Optional[Parser]):
+            raise ValueError('Invalid argument: Parser or None expected')
         self._parser = parser
 
     def parse(self, url) -> str:

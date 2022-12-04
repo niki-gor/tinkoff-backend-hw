@@ -1,5 +1,5 @@
 import re
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Optional
 
 import requests
@@ -8,14 +8,11 @@ from bs4 import BeautifulSoup
 
 class Parser(ABC):
     URL_REGEX: re.Pattern = None
-    SELECTOR: str = None
 
     @classmethod
+    @abstractmethod
     def parse(cls, url: str) -> str:
-        page = requests.get(url)
-        soup = BeautifulSoup(page.text, 'html.parser')
-        result = soup.select_one(cls.SELECTOR)
-        return result.text
+        pass
 
     @classmethod
     def can_parse(cls, url: str) -> bool:

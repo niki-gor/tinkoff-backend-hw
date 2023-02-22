@@ -8,12 +8,15 @@ import requests
 from .models import Show
 
 
+API_URL = "https://api.tvmaze.com/singlesearch/shows"
+
+
 def search_show(name: str) -> Optional[Show]:
     if not isinstance(name, str):
         raise TypeError("Expected show name (type str)")
 
     params = {"q": name}
-    response = requests.get(url=search_show.API_URL, params=params)
+    response = requests.get(url=API_URL, params=params)
 
     if response.status_code == HTTPStatus.NOT_FOUND:
         return None
@@ -31,9 +34,8 @@ def search_show(name: str) -> Optional[Show]:
     except json.decoder.JSONDecodeError:
         raise ValueError("Invalid JSON response")
     except pydantic.error_wrappers.ValidationError:
-        raise ValueError("Looks like information about network is not provided")
+        raise ValueError(
+            "Looks like information about network is not provided"
+        )
 
     return show
-
-
-search_show.API_URL = "https://api.tvmaze.com/singlesearch/shows"

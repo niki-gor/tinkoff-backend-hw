@@ -19,35 +19,35 @@ class Handler:
 def add_favourite(sender_id: int, show_name: str) -> str:
     show = search_show(show_name)
     if not show:
-        return 'Not found'
+        return "Not found"
     elif show.id in user_favourites[sender_id]:
-        return 'Already in favourites'
+        return "Already in favourites"
     else:
         user_favourites[sender_id][show.id] = show.name
-        return 'Added to favourites: {}'.format(show.name)
+        return "Added to favourites: {}".format(show.name)
 
 
 def del_favourite(sender_id: int, show_name: str) -> str:
     show = search_show(show_name)
     if not show:
-        return 'Not found'
+        return "Not found"
     elif show.id in user_favourites[sender_id]:
         user_favourites[sender_id].pop(show.id)
-        return 'Removed from favourites: {}'.format(show.name)
+        return "Removed from favourites: {}".format(show.name)
     else:
-        return 'Not in favourites'
+        return "Not in favourites"
 
 
 def list_favourites(sender_id: int, show_name: str) -> str:
     if user_favourites[sender_id]:
-        return '\n'.join(user_favourites[sender_id].values())
+        return "\n".join(user_favourites[sender_id].values())
     else:
-        return 'No favourites'
+        return "No favourites"
 
 
 def show_info(sender_id: int, show_name: str) -> str:
     show = search_show(show_name)
     if not show:
-        return 'Not found'
+        return "Not found"
     else:
         return str(show)
